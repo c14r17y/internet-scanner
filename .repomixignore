@@ -1,0 +1,10 @@
+# Add patterns to ignore here, one per line
+# Example:
+# *.log
+# tmp/
+.tmp
+.out
+.logs
+bin
+deps/zgrab2
+*.md

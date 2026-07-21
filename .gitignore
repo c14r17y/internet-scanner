@@ -1,3 +1,5 @@
 .logs
 .tmp
+bin
 out
+repomix-indexed-output.md
