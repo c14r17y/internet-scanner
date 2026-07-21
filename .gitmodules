@@ -1,0 +1,3 @@
+[submodule "deps/zgrab2"]
+	path = deps/zgrab2
+	url = https://github.com/zmap/zgrab2.git
