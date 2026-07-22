@@ -6,12 +6,29 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
+### INDEV START ###
+
+CONFIG_DIR="$(cd "$(dirname "$0")" && pwd)/.config-dev"
+
+for cfg in \
+    main.conf \
+    ports.conf \
+    ranges.conf \
+    zmap.conf \
+    http.conf \
+    mc.conf
+do
+    . "$CONFIG_DIR/$cfg"
+done
+
+### INDEV END ###
+
 TS=$(date +"%Y-%m-%d_%H-%M-%S")
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 mkdir -p "$SCRIPT_DIR/.tmp/zmap"
 mkdir -p "$SCRIPT_DIR/.tmp/zgrab"
-mkdir -p "$SCRIPT_DIR/.tmp/mcutil"
+mkdir -p "$SCRIPT_DIR/.tmp/mcgrab"
 mkdir -p "$SCRIPT_DIR/out/zgrab"
 mkdir -p "$SCRIPT_DIR/.logs"
 
@@ -21,20 +38,11 @@ log() {
   echo "[$(date '+%H:%M:%S')] $*" | tee -a "$logfile"
 }
 
-# ---------------- CONFIG ----------------
-
-ranges="2.132.64.0/22"
-ports="23,80,81,22,8081,25565"
-
-gatewaymac="c0:25:2f:50:83:95"
-rate="150"
-
-outfilter="success=1 && repeat=0"
-outfields="saddr,sport"
+# ---------------- Config ----------------
 
 zmap_log="$SCRIPT_DIR/.logs/zmap_${TS}.log"
 
-# ---------------- HELPERS ----------------
+# ---------------- Helpers ----------------
 
 get_proto() {
   case "$1" in
@@ -47,7 +55,7 @@ get_proto() {
 
 is_minecraft() {
   case "$1" in
-    25565|25566|25567) return 0 ;;
+    25565|25566|25567|19132|19133) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -56,19 +64,26 @@ is_minecraft() {
 
 log "[ZMAP] Starting scan"
 
-zmap "$ranges" \
-  --target-ports="$ports" \
-  --gateway-mac="$gatewaymac" \
-  --rate="$rate" \
+if [[ "$BYTE_RATEMODE" == "true" ]]; then
+    RATE_ARG=(--bandwidth="$BPS_RATE")
+else
+    RATE_ARG=(--rate="$RATE")
+fi
+
+zmap "$RANGES" \
   --output-module=json \
-  --output-filter="$outfilter" \
-  --output-fields="$outfields" \
+  --target-ports="$PORTS" \
+  --gateway-mac="$GATEWAY_MAC" \
+  "${RATE_ARG[@]}" \
+  --output-filter="$OUTPUT_FILTER" \
+  --output-fields="$OUTPUT_FIELDS" \
   --output-file="$SCRIPT_DIR/.tmp/zmap/out_${TS}.json" \
+  --retries="$RETRIES" \
   --log-file="$zmap_log"
 
 log "[ZMAP] Done"
 
-# ---------------- ROUTER ----------------
+# ---------------- Router ----------------
 
 mc_targets="$SCRIPT_DIR/.tmp/zgrab/mc_targets_${TS}.txt"
 : > "$mc_targets"
@@ -109,19 +124,19 @@ if [ -s "$SCRIPT_DIR/.tmp/zgrab/http_targets_${TS}.txt" ]; then
   done < "$SCRIPT_DIR/.tmp/zgrab/http_targets_${TS}.txt"
 fi
 
-# ---------------- MCUTIL ----------------
+# ---------------- MCGRAB ----------------
 
-mc_out="$SCRIPT_DIR/out/mcutil/minecraft_${TS}.jsonl"
+mc_out="$SCRIPT_DIR/out/mcgrab/minecraft_${TS}.jsonl"
 
 if [ -s "$mc_targets" ]; then
-  log "[MINECRAFT] Running mcutil stage"
+  log "[MCGRAB] Running MINECRAFT stage"
 
   sort -u "$mc_targets" | ./mcgrab > "$mc_out"
 else
-  log "[MINECRAFT] No targets"
+  log "[MCGRAB] No targets"
 fi
 
-# ---------------- MERGE ----------------
+# ---------------- Merge ----------------
 
 final="$SCRIPT_DIR/out/zgrab/final_${TS}.json"
 
