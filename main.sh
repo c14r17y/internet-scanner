@@ -40,15 +40,8 @@ mkdir -p "$SCRIPT_DIR/.logs/zgrab"
 
 logfile="$SCRIPT_DIR/.logs/log_${TS}.log"
 
-ranges=$cherrynet
 dedup="default"
-outfilter="success=1 && repeat=0"
-outfields="saddr,sport"
-mcgrab_workers="100"
-retries="1"
 cooldowntime="8"
-sbr="14"
-sas="120"
 
 IFS=',' read -r -a range_array <<< "$RANGES"
 IFS=',' read -r -a port_array <<< "$PORTS"
@@ -115,12 +108,12 @@ for index in "${!range_array[@]}"; do
   log_command "[Zmap] finished cidr $range"
   scanned_ips=$(jq -r '.saddr' "$outputfile" | sort -u | wc -l)
   log_command "[Zmap] Scanned IPs: $scanned_ips"
-  log_command "[Sleep] ${sbr}s between scans"
-  sleep "$sbr"
+  log_command "[Sleep] ${BETWEEN_SCAN_SLEEP}s between scans"
+  sleep "$BETWEEN_SCAN_SLEEP"
 done
 
 log_command "[Zmap] done"
-sleep "$sas"
+sleep "$SLEEP_AFTER_SCAN"
 
 # -------------------------
 # TARGET FILES
@@ -184,7 +177,7 @@ if [ -s "$MC_TARGETS" ]; then
   mc_out="$SCRIPT_DIR/out/minecraft/minecraft_${TS}.txt"
 
   #./bin/mcgraber --workers "$mcgrab_workers" < "$MC_TARGETS" > "$mc_out"
-  cat "$MC_TARGETS"  | ./bin/mcgraber --workers "$mcgrab_workers" | jq -s '.' > "$mc_out"
+  cat "$MC_TARGETS"  | ./bin/mcgraber --workers "$MC_WORKERS" | jq -s '.' > "$mc_out"
 
   log_command "[MC] saved -> $mc_out"
 fi
